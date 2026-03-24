@@ -5,7 +5,7 @@
     "buildCommand": "cd faceprep && npm install && npm run build && cd ../faceprep-backend && npm install"
   },
   "deploy": {
-    "startCommand": "node faceprep-backend/src/index.js",
+    "startCommand": "node faceprep-backend/src/server.js",
     "restartPolicyType": "ON_FAILURE"
   }
 }

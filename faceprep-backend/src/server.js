@@ -43,6 +43,13 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", ts: Date.now() });
 });
 
+// ── SERVE REACT FRONTEND ──────────────────────────────────────────────────────
+const path = require("path");
+app.use(express.static(path.join(__dirname, "../../faceprep/dist")));
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../../faceprep/dist/index.html"));
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
