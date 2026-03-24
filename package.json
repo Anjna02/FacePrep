@@ -1,0 +1,8 @@
+{
+  "name": "faceprep-root",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd faceprep && npm install && npm run build",
+    "start": "node faceprep-backend/src/index.js"
+  }
+}
