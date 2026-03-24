@@ -21,7 +21,18 @@ const PORT = process.env.PORT || 4000;
 app.use(helmet());
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
+  origin: (origin, callback) => {
+    const allowed = [
+      process.env.FRONTEND_URL,
+      /\.vercel\.app$/,        // all Vercel preview URLs
+      "http://localhost:5173", // local dev
+    ];
+    if (!origin) return callback(null, true); // allow non-browser requests
+    const ok = allowed.some(p =>
+      typeof p === "string" ? p === origin : p.test(origin)
+    );
+    ok ? callback(null, true) : callback(new Error("CORS blocked: " + origin));
+  },
   methods: ["GET", "POST", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
