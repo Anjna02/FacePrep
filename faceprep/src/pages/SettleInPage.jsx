@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import manImage from "../assets/man1.png";
 
-export default function SettleInPage({ onComplete, seconds = 10 }) {
+export default function SettleInPage({ onComplete, seconds = 3 }) {
   const [count, setCount] = useState(seconds);
   const [done, setDone] = useState(false);
 

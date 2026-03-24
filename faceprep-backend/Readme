@@ -1,0 +1,187 @@
+# FacePrep Backend
+
+Express + SQLite backend for the FacePrep exam platform.
+
+---
+
+## Folder structure
+
+```
+faceprep-backend/
+├── src/
+│   ├── server.js              ← Entry point — Express app + middleware
+│   ├── db.js                  ← SQLite schema (7 tables, indexes, WAL)
+│   ├── seed.js                ← Seed DB with assessments, questions, users
+│   ├── middleware/
+│   │   └── auth.js            ← JWT sign/verify, requireAuth, requireAdmin
+│   └── routes/
+│       ├── auth.js            ← POST /login /register /logout, GET /me
+│       ├── assessments.js     ← GET /assessments, /:id, /:id/sections/:sid/questions
+│       ├── proctor.js         ← POST /proctor/verify
+│       ├── sessions.js        ← GET/POST/DELETE /sessions/:sectionId
+│       └── submit.js          ← POST /submit/:sectionId, GET /submit/:sectionId/result
+├── frontend-api/              ← Drop these into your React src/
+│   ├── api.js                 ← Single API client (auth, assessments, sessions, submit)
+│   ├── App.jsx
+│   ├── LoginPage.jsx
+│   ├── ProctorVerifyPage.jsx
+│   ├── AssessmentsPage.jsx
+│   ├── TestSectionsPage.jsx
+│   ├── MCQPage.jsx
+│   └── QuestionListPage.jsx
+├── .env.example
+├── .gitignore
+├── package.json
+└── railway.toml
+```
+
+---
+
+## Local setup
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Copy and configure environment
+cp .env.example .env
+# Edit .env — set JWT_SECRET to a strong random string
+
+# 3. Seed the database (creates faceprep.db with all data)
+npm run seed
+
+# 4. Start development server (auto-restarts on file changes)
+npm run dev
+# → http://localhost:4000
+```
+
+### Default credentials after seeding
+
+| Role    | Email                    | Password    |
+|---------|--------------------------|-------------|
+| Admin   | admin@faceprep.com       | admin123    |
+| Student | student@faceprep.com     | student123  |
+
+Proctor code for the active assessment: **123456**
+
+---
+
+## Integrating the frontend files
+
+1. Copy `frontend-api/api.js` → `your-react-app/src/api/api.js`
+2. Replace these pages in `src/pages/` with the versions from `frontend-api/`:
+   - `App.jsx` (goes in `src/`, not `src/pages/`)
+   - `LoginPage.jsx`
+   - `ProctorVerifyPage.jsx`
+   - `AssessmentsPage.jsx`
+   - `TestSectionsPage.jsx`
+   - `MCQPage.jsx`
+   - `QuestionListPage.jsx`
+
+3. Add to your React `.env`:
+```
+VITE_API_URL=http://localhost:4000
+```
+
+---
+
+## API Reference
+
+All routes except `/api/auth/login`, `/api/auth/register`, and `/api/health` require:
+```
+Authorization: Bearer <token>
+```
+
+### Auth
+
+| Method | Endpoint | Body | Returns |
+|--------|----------|------|---------|
+| POST | `/api/auth/login` | `{ email, password }` | `{ token, user }` |
+| POST | `/api/auth/register` | `{ name, email, password }` | `{ token, user }` |
+| GET  | `/api/auth/me` | — | `{ user }` |
+| POST | `/api/auth/logout` | — | `{ ok }` |
+
+### Assessments
+
+| Method | Endpoint | Returns |
+|--------|----------|---------|
+| GET | `/api/assessments` | `{ active: [...], completed: [...] }` |
+| GET | `/api/assessments/:id` | Assessment + sections (with `completed` flag per user) |
+| GET | `/api/assessments/:id/sections/:sectionId/questions` | `{ section, questions }` |
+
+### Proctor
+
+| Method | Endpoint | Body | Returns |
+|--------|----------|------|---------|
+| POST | `/api/proctor/verify` | `{ code, assessmentId }` | `{ ok, assessmentId }` |
+
+### Sessions (in-progress exam state)
+
+| Method | Endpoint | Body | Returns |
+|--------|----------|------|---------|
+| GET    | `/api/sessions/:sectionId` | — | `{ answers, statuses, time_left }` or 404 |
+| POST   | `/api/sessions/:sectionId` | `{ answers, statuses, time_left }` | `{ ok }` |
+| DELETE | `/api/sessions/:sectionId` | — | `{ ok }` |
+
+### Submit
+
+| Method | Endpoint | Body | Returns |
+|--------|----------|------|---------|
+| POST | `/api/submit/:sectionId` | `{ answers, time_taken }` | `{ submission_id, score, total_marks, graded }` |
+| GET  | `/api/submit/:sectionId/result` | — | `{ score, total_marks, time_taken, graded }` |
+
+### Health
+
+```
+GET /api/health → { status: "ok", ts: 1234567890 }
+```
+
+---
+
+## Deploy to Railway (free)
+
+1. Push `faceprep-backend/` to a **new GitHub repo**
+
+2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
+
+3. Railway detects Node.js automatically and runs `npm start`
+
+4. In Railway dashboard → your service → **Variables**, set:
+
+```
+PORT=4000
+JWT_SECRET=your_long_random_secret_here
+FRONTEND_URL=https://your-frontend.vercel.app
+DATA_DIR=/tmp
+```
+
+> **Note on `DATA_DIR=/tmp`:** Railway's filesystem resets on each deploy.
+> For a permanent database, add a Railway **Volume** (free tier available)
+> and set `DATA_DIR` to the volume mount path (e.g. `/data`).
+> Then run `npm run seed` once via the Railway console.
+
+5. Copy the Railway public URL (e.g. `https://faceprep-backend.up.railway.app`)
+
+6. In your React app's deploy (Vercel/Netlify), set:
+```
+VITE_API_URL=https://faceprep-backend.up.railway.app
+```
+
+7. After first deploy, run the seed from the Railway console:
+```bash
+npm run seed
+```
+
+---
+
+## Database schema
+
+```
+users           id, name, email, password_hash, role, created_at
+assessments     id, title, type, total_sections, total_questions, duration_mins, status, start_date
+sections        id, assessment_id, title, total_questions, total_marks, duration_mins, type, position
+questions       id, section_id, text, type, options (JSON), correct_idx, position
+proctor_codes   id, code, assessment_id, expires_at
+exam_sessions   id (user__section), user_id, section_id, answers (JSON), statuses (JSON), time_left
+submissions     id, user_id, assessment_id, section_id, answers (JSON), score, total_marks, time_taken
+```
