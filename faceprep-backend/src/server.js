@@ -24,10 +24,10 @@ app.use(cors({
   origin: (origin, callback) => {
     const allowed = [
       process.env.FRONTEND_URL,
-      /\.vercel\.app$/,        // all Vercel preview URLs
-      "http://localhost:5173", // local dev
+      /\.vercel\.app$/,
+      "http://localhost:5173",
     ];
-    if (!origin) return callback(null, true); // allow non-browser requests
+    if (!origin) return callback(null, true);
     const ok = allowed.some(p =>
       typeof p === "string" ? p === origin : p.test(origin)
     );
@@ -37,7 +37,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-// Global rate limit
 app.use(rateLimit({
   windowMs: 60_000,
   max: 200,
@@ -45,7 +44,6 @@ app.use(rateLimit({
   legacyHeaders: false
 }));
 
-// Stricter auth limits
 app.use("/api/auth/login",
   rateLimit({ windowMs: 60_000, max: 10, message: { error: "Too many login attempts" } })
 );
@@ -63,27 +61,33 @@ app.use("/api/proctor",     proctorRoutes);
 app.use("/api/sessions",    sessionRoutes);
 app.use("/api/submit",      submitRoutes);
 
-// ── HEALTH CHECK (IMPORTANT FOR RAILWAY) ──────────────────────────────────────
+// ── HEALTH CHECK ──────────────────────────────────────────────────────────────
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", ts: Date.now() });
 });
 
-// ── SERVE FRONTEND (FIXED PATH LOGIC) ─────────────────────────────────────────
+// ── TEMP: one-time reseed endpoint (remove ENABLE_SEED env var after use) ─────
+if (process.env.ENABLE_SEED === "true") {
+  app.get("/api/admin/reseed", (_req, res) => {
+    try {
+      // Clear require cache so seed runs fresh every time
+      delete require.cache[require.resolve("./seed")];
+      require("./seed");
+      res.json({ ok: true, message: "Database reseeded!" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
 
-// absolute safe path (works on Railway)
+// ── SERVE FRONTEND ────────────────────────────────────────────────────────────
 const frontendPath = path.resolve(__dirname, "../../faceprep/dist");
-
-// debug log (VERY useful in Railway logs)
 console.log("📦 Frontend path:", frontendPath);
 
-// serve static files if build exists
 app.use(express.static(frontendPath));
 
-// fallback for React Router
 app.get("*", (req, res, next) => {
   const indexFile = path.join(frontendPath, "index.html");
-
-  // check if file exists to avoid crash
   if (require("fs").existsSync(indexFile)) {
     return res.sendFile(indexFile);
   } else {
@@ -104,16 +108,13 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({ error: err.message || "Internal server error" });
 });
 
-if (process.env.ENABLE_SEED === "true") {
-  app.get("/api/admin/reseed", async (_req, res) => {
-    try {
-      require("./seed");
-      res.json({ ok: true, message: "Database reseeded!" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+// ── AUTO-SEED IF DB IS EMPTY ──────────────────────────────────────────────────
+const userCount = require("./db").prepare("SELECT COUNT(*) as n FROM users").get().n;
+if (userCount === 0) {
+  console.log("🌱 Empty DB detected — running seed...");
+  require("./seed");
 }
+
 // ── START SERVER ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 FacePrep running on port ${PORT}`);
