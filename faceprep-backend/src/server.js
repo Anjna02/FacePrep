@@ -104,6 +104,16 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({ error: err.message || "Internal server error" });
 });
 
+if (process.env.ENABLE_SEED === "true") {
+  app.get("/api/admin/reseed", async (_req, res) => {
+    try {
+      require("./seed");
+      res.json({ ok: true, message: "Database reseeded!" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
 // ── START SERVER ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 FacePrep running on port ${PORT}`);
