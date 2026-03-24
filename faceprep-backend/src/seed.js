@@ -21,8 +21,8 @@ const insertUser = db.prepare(
 );
 
 insertUser.run("Admin User",   "admin@faceprep.com",   hash("admin123"),   "admin");
-insertUser.run("Test Student", "2023pietcddhwani011@poornima.org", hash("#Learning@2025"), "student");
-insertUser.run("Test Student", "anjnajariwal02@gmail.com", hash("Anjna@2004"), "student");
+insertUser.run("2023pietcddhwani011@poornima.org", "2023pietcddhwani011@poornima.org", hash("#Learning@2025"), "student");
+insertUser.run("Anjna Jariwal", "anjnajariwal02@gmail.com", hash("Anjna@2004"), "student");
 
 // ── ASSESSMENTS ──────────────────────────────────────────────────────────────
 const insertAssessment = db.prepare(`

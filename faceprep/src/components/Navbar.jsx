@@ -151,7 +151,7 @@ export default function Navbar({ activePage, onNavigate, username, onLogout }) {
             </div>
 
             <div style={{ padding: "6px 0" }}>
-              {[{ icon: "👤", label: "My Profile" }, { icon: "⚙️", label: "Settings" }].map(item => (
+              {[{ icon: "", label: "My Profile" }, { icon: "", label: "Settings" }].map(item => (
                 <button
                   key={item.label}
                   style={{
@@ -181,7 +181,7 @@ export default function Navbar({ activePage, onNavigate, username, onLogout }) {
                 onMouseOver={e => e.currentTarget.style.background = "#fff5f5"}
                 onMouseOut={e => e.currentTarget.style.background = "none"}
               >
-                <span>🚪</span> Log Out
+                <span></span> Log Out
               </button>
             </div>
           </div>
